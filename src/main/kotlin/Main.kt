@@ -1,15 +1,23 @@
 package ex
 
+import ex.entities.Hotel
+import ex.entities.Meal
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
 import java.io.File
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 
-const val version = "0.0"
+const val version = "0.1"
 
 fun main() {
+    // Main function. This function starts entier app. Also here is interfaces of app
     val path = "/Users/runbyzo/Documents/programs/Kotlin/travel_agency/src/resources"
+    val today = LocalDateTime.now()
+    val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
     println("Travel Agency $version is getting started!")
 
+    // Main menu. here you can make new file, open existing and delete one of them.
     while (true){
         val resources = File(path).list()
 
@@ -64,6 +72,7 @@ fun main() {
     }
 }
 
+// menu for json file handling
 fun sideMenu(name: String){
     val fileManager = FileManager(name)
 
@@ -73,20 +82,22 @@ fun sideMenu(name: String){
            Available JSON-operations: 
             1. Show all records.
             2. Add dynamic record.
-            3. Редактирование существующей записи по идентификатору.
-            4. Удаление записи.
-            5. Поиск записей (минимум по одному текстовому полю).
-            6. Сортировка записей (минимум по одному числовому или текстовому полю).
-            7. Вычисление агрегированного показателя (среднее, сумма, минимум, максимум).
-            8. Сохранение данных в JSON-файл.
-            9. Выход
+            3. Add tour record.
+            4. Add hotel record.
+            5. Редактирование существующей записи по идентификатору.
+            6. Удаление записи.
+            7. Поиск записей (минимум по одному текстовому полю).
+            8. Сортировка записей (минимум по одному числовому или текстовому полю).
+            9. Вычисление агрегированного показателя (среднее, сумма, минимум, максимум).
+            10. Выход
              
         """.trimIndent())
 
         print("-> ")
         when (val input = readlnOrNull()?.toInt()) {
-            1 -> println(fileManager.loadFromFile())
+            1 -> println(fileManager.loadFromFile()) // Show all records
             2 -> {
+                // Add dynamic record
                 print("Input name of record: ")
                 val recordName = readln().trim()
 
@@ -95,14 +106,15 @@ fun sideMenu(name: String){
 
                 val fields = LinkedHashMap<String, JsonElement>()
 
+                // this algorithm makes fields of dynamic class to create any json elements
                 repeat(count) { i ->
                     println("\nField ${i + 1}:")
 
                     print("\nField Name: ")
-                    val fieldName = readln().trim()
+                    val fieldName = readlnOrNull()?.trim() ?: "unnamed field"
 
                     print("\nType (1=String, 2=Int, 3=Double, 4=Boolean): ")
-                    val type = readln().trim()
+                    val type = readlnOrNull()?.trim() ?: 1
 
                     print("\nValue: ")
                     val rawValue = readln().trim()
@@ -114,16 +126,83 @@ fun sideMenu(name: String){
                         else -> JsonPrimitive(rawValue)
                     }
                 }
-                fileManager.buildAndSaveRecord(recordName, count, fields)
+                fileManager.buildAndSaveDRecord(recordName, count, fields)
             }
-            3 -> println("...")
+            3 -> {
+                // Add tour record
+
+                // ask about tour params
+                print("Name of record: ")
+                val recordName = readlnOrNull()?.trim() ?: "unnamed record"
+
+                print("how many days will get this tour: ")
+                val endDate: Long = readlnOrNull()?.toLong() ?: 7
+
+                print("Is tour active: ")
+                val isActive = readlnOrNull()?.toBoolean() ?: false
+
+                print("Price: ")
+                val price = readlnOrNull()?.toDouble() ?: 0.0
+
+                print("Description: ")
+                val description = readlnOrNull()?.trim() ?: "there is nothing"
+
+                // ask about hotel params
+                print("hotel name: ")
+                val hotelName = readlnOrNull()?.trim() ?: "unnamed hotel"
+
+                print("location: ")
+                val location = readlnOrNull()?.trim() ?: "unnamed location"
+
+                print("description: ")
+                val hotelDescription = readlnOrNull()?.trim() ?: "there is nothing"
+
+                print("Meal types(write them by using ',': ")
+                val mealTypes = readlnOrNull()?.split(',')
+                val mealPlan  = convertToEnums(mealTypes)
+
+                print("how many stars: ")
+                val stars = readlnOrNull()?.toInt() ?: 0
+
+                print("is hotel available: ")
+                val isHotelAvailable = readlnOrNull()?.toBoolean() ?: false
+
+                val hotel = Hotel(
+                    name = hotelName,
+                    location = location,
+                    description = hotelDescription,
+                    mealPlan = mealPlan,
+                    stars = 1,
+                    isAvailable = true
+                )
+
+                fileManager.buildAndSaveTRecord(
+                    recordName = recordName,
+                    startDate = LocalDateTime.now().toString(),
+                    endDate = LocalDateTime.now().plusDays(endDate).toString(),
+                    price = price,
+                    description = description,
+                    isActive = true,
+                    hotel = hotel)
+            }
             4 -> println("...")
             5 -> println("...")
             6 -> println("...")
             7 -> println("...")
             8 -> println("...")
-            9 -> break
+            11 -> break
             else -> println("wrong input: $input wasn't identified")
         }
     }
+}
+
+// this method converts list of strings to list of enums
+fun convertToEnums(inputs: List<String>?): List<Meal> {
+    val result = mutableListOf<Meal?>()
+    for (i in inputs!!) {
+        for (j in Meal.entries) {
+            if (i == j.toString()) result.add(j)
+        }
+    }
+    return result as List<Meal>
 }

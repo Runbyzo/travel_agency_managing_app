@@ -2,15 +2,17 @@ package ex
 
 import DynamicRecord
 import ex.entities.Hotel
+import ex.entities.JsonEntity
 import ex.entities.Meal
 import ex.entities.Tour
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.jsonArray
 import java.io.File
-import java.time.LocalDateTime
 
 
 class FileManager {
@@ -42,7 +44,7 @@ class FileManager {
         isActive: Boolean,
         price: Double,
         description: String,
-        hotel: Hotel
+        hotel: Hotel?
     ): Tour {
         val record = Tour(recordName, startDate, endDate, isActive, price, description, hotel)
         saveTRecord(record)
@@ -108,5 +110,42 @@ class FileManager {
         println("\nRecord was saved in: ${jsonFile.path}")
     }
 
+    fun findHotel(hotelName: String): Hotel? {
+        val hotelsJson = File("$path/hotels.json").readText()
+        val jsonArray = Json.parseToJsonElement(hotelsJson).jsonArray
+        val result: Hotel?
+
+        if(hotelName in hotelsJson){
+            println("start searching for hotel $hotelName")
+        } else {
+            println("hotel does not exist")
+            return null
+        }
+
+        val hotels = jsonArray.map {
+            Json.decodeFromJsonElement<Hotel>(it)
+        }
+
+        return hotels.find { it.name == hotelName}
+    }
+
+    fun patchRecord(recordName: String) {
+        val file = jsonFile.readText()
+        val jsonArray = Json.parseToJsonElement(file).jsonArray
+
+        if(recordName in file){
+            val records = jsonArray.map {
+                Json.decodeFromJsonElement<JsonEntity>(it)
+            }
+            val record = records.find { it.name == recordName }
+            println("record found: $record")
+        }
+        else{
+            println("record not found")
+        }
+
+        // ... <-- here i stopped i have to make this part what patches record
+    }
 
 }
+// iron-quake

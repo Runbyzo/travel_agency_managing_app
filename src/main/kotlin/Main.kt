@@ -84,7 +84,7 @@ fun sideMenu(name: String){
             2. Add dynamic record.
             3. Add tour record.
             4. Add hotel record.
-            5. Редактирование существующей записи по идентификатору.
+            5. Patch record.
             6. Удаление записи.
             7. Поиск записей (минимум по одному текстовому полю).
             8. Сортировка записей (минимум по одному числовому или текстовому полю).
@@ -147,6 +147,25 @@ fun sideMenu(name: String){
                 print("Description: ")
                 val description = readlnOrNull()?.trim() ?: "there is nothing"
 
+                // ask about hotel
+                print("file name where hotels are stored: ")
+                val hotelJson = readlnOrNull()?.trim() ?: "hotels"
+
+                print("hotel name: ")
+                val hotelName = readlnOrNull()?.trim() ?: "unnamed hotel"
+
+                val hotel = fileManager.findHotel( hotelName)
+
+                fileManager.buildAndSaveTRecord(
+                    recordName = recordName,
+                    startDate = LocalDateTime.now().toString(),
+                    endDate = LocalDateTime.now().plusDays(endDate).toString(),
+                    price = price,
+                    description = description,
+                    isActive = true,
+                    hotel = hotel)
+            }
+            4 -> {
                 // ask about hotel params
                 print("hotel name: ")
                 val hotelName = readlnOrNull()?.trim() ?: "unnamed hotel"
@@ -167,26 +186,19 @@ fun sideMenu(name: String){
                 print("is hotel available: ")
                 val isHotelAvailable = readlnOrNull()?.toBoolean() ?: false
 
-                val hotel = Hotel(
-                    name = hotelName,
+                fileManager.buildAndSaveHRecord(
+                    recordName = hotelName,
                     location = location,
                     description = hotelDescription,
                     mealPlan = mealPlan,
-                    stars = 1,
-                    isAvailable = true
+                    stars = stars,
+                    isAvailable = isHotelAvailable
                 )
-
-                fileManager.buildAndSaveTRecord(
-                    recordName = recordName,
-                    startDate = LocalDateTime.now().toString(),
-                    endDate = LocalDateTime.now().plusDays(endDate).toString(),
-                    price = price,
-                    description = description,
-                    isActive = true,
-                    hotel = hotel)
             }
-            4 -> println("...")
-            5 -> println("...")
+            5 -> {
+                print("record name: ")
+                val recordName = readlnOrNull()?.trim() ?: "unnamed record"
+            }
             6 -> println("...")
             7 -> println("...")
             8 -> println("...")

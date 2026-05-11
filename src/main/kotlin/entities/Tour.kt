@@ -1,7 +1,9 @@
 package ex.entities
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
+@SerialName("Tour")
 data class Tour(
     override val name: String,
     val startDate: String,

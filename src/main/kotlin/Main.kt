@@ -81,7 +81,7 @@ fun sideMenu(name: String){
             
            Available JSON-operations: 
             1. Show all records.
-            2. Add dynamic record.
+            2. Add dynamic record. (you won't be able to patch it)
             3. Add tour record.
             4. Add hotel record.
             5. Patch record.
@@ -176,14 +176,14 @@ fun sideMenu(name: String){
                 print("description: ")
                 val hotelDescription = readlnOrNull()?.trim() ?: "there is nothing"
 
-                print("Meal types(write them by using ',': ")
+                print("Meal types (write them by using ','): ")
                 val mealTypes = readlnOrNull()?.split(',')
                 val mealPlan  = convertToEnums(mealTypes)
 
                 print("how many stars: ")
                 val stars = readlnOrNull()?.toInt() ?: 0
 
-                print("is hotel available: ")
+                print("is hotel available (true/false): ")
                 val isHotelAvailable = readlnOrNull()?.toBoolean() ?: false
 
                 fileManager.buildAndSaveHRecord(
@@ -198,23 +198,24 @@ fun sideMenu(name: String){
             5 -> {
                 print("record name: ")
                 val recordName = readlnOrNull()?.trim() ?: "unnamed record"
+                fileManager.patchRecord(recordName)
             }
             6 -> println("...")
             7 -> println("...")
             8 -> println("...")
-            11 -> break
+            10 -> break
             else -> println("wrong input: $input wasn't identified")
         }
     }
 }
 
 // this method converts list of strings to list of enums
-fun convertToEnums(inputs: List<String>?): List<Meal> {
+fun convertToEnums(inputs: List<String>?): MutableList<Meal?> {
     val result = mutableListOf<Meal?>()
     for (i in inputs!!) {
         for (j in Meal.entries) {
             if (i == j.toString()) result.add(j)
         }
     }
-    return result as List<Meal>
+    return result
 }

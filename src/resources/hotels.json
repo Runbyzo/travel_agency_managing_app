@@ -1,8 +1,12 @@
 [
     {
-        "name": "a",
-        "fields": {
-            "a": "a"
-        }
+        "name": "Rillo",
+        "location": "there",
+        "description": "amazing hotel (mb)",
+        "mealPlan": [
+            "RoomOnly"
+        ],
+        "stars": 1,
+        "isAvailable": true
     }
 ]

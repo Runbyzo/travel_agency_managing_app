@@ -14,7 +14,6 @@ import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.jsonArray
 import java.io.File
 
-
 class FileManager {
     val path = "/Users/runbyzo/Documents/programs/Kotlin/travel_agency/src/resources"
     var jsonFile = File("")
@@ -54,9 +53,10 @@ class FileManager {
     fun buildAndSaveHRecord(recordName: String,
                             location: String,
                             description: String,
-                            mealPlan: List<Meal>,
+                            mealPlan: MutableList<Meal?>,
                             stars: Int,
                             isAvailable: Boolean): Hotel {
+
         val record = Hotel(recordName, location, description, mealPlan, stars, isAvailable)
         saveHRecord(record)
         return record
@@ -87,8 +87,13 @@ class FileManager {
             JsonArray(emptyList())
         }
 
+        // Remove the old record with the same name before appending the updated one
+        val filtered = existingArray.filter { element ->
+            (element as? JsonObject)?.get("name")?.toString()?.trim('"') != record.name
+        }
+
         val newElement = json.encodeToJsonElement(record)
-        val updatedArray = JsonArray(existingArray + newElement)
+        val updatedArray = JsonArray(filtered + newElement)
 
         jsonFile.writeText(json.encodeToString(updatedArray))
         println("\nRecord was saved in: ${jsonFile.path}")
@@ -103,8 +108,12 @@ class FileManager {
             JsonArray(emptyList())
         }
 
+        val filtered = existingArray.filter { element ->
+            (element as? JsonObject)?.get("name")?.toString()?.trim('"') != record.name
+        }
+
         val newElement = json.encodeToJsonElement(record)
-        val updatedArray = JsonArray(existingArray + newElement)
+        val updatedArray = JsonArray(filtered + newElement)
 
         jsonFile.writeText(json.encodeToString(updatedArray))
         println("\nRecord was saved in: ${jsonFile.path}")
@@ -129,23 +138,117 @@ class FileManager {
         return hotels.find { it.name == hotelName}
     }
 
+    private fun saveRecord(record: JsonEntity) {
+        val json = Json { prettyPrint = true }
+
+        val existingArray: JsonArray = if (jsonFile.exists() && jsonFile.readText().isNotBlank()) {
+            json.parseToJsonElement(jsonFile.readText()).jsonArray
+        } else {
+            JsonArray(emptyList())
+        }
+
+        val filtered = existingArray.filter { element ->
+            (element as? JsonObject)?.get("name")?.toString()?.trim('"') != record.name
+        }
+
+        val newElement = when (record) {
+            is Hotel -> json.encodeToJsonElement(record)
+            is Tour  -> json.encodeToJsonElement(record)
+            else     -> return println("Unsupported record type")
+        }
+
+        jsonFile.writeText(json.encodeToString(JsonArray(filtered + newElement)))
+        println("\nRecord was saved in: ${jsonFile.path}")
+    }
+
+
+    private fun readOrDefault(): String? = readlnOrNull()?.trim()?.ifBlank { null }
+
+    private fun patchHotel(hotel: Hotel, recordName: String): Hotel {
+        println("Patching hotel $recordName")
+
+        print("new name (old: ${hotel.name}): ")
+        val patchedName = readOrDefault() ?: hotel.name
+
+        print("new location (old: ${hotel.location}): ")
+        val patchedLocation = readOrDefault() ?: hotel.location
+
+        print("new description (old: ${hotel.description}): ")
+        val patchedDescription = readOrDefault() ?: hotel.description
+
+        print("new meal plan, comma-separated (',')(old: ${hotel.mealPlan}): ")
+        val patchedMealPlan = readOrDefault()?.split(',')?.let { convertToEnums(it) } ?: hotel.mealPlan
+
+        print("new stars (old: ${hotel.stars}): ")
+        val patchedStars = readOrDefault()?.toIntOrNull() ?: hotel.stars
+
+        print("new isAvailable true/false (old: ${hotel.isAvailable}): ")
+        val patchedIsAvailable = readOrDefault()?.toBooleanStrictOrNull() ?: hotel.isAvailable
+
+        val patched = Hotel(patchedName, patchedLocation, patchedDescription, patchedMealPlan, patchedStars, patchedIsAvailable)
+        saveRecord(patched)
+        return patched
+    }
+
+    private fun patchTour(tour: Tour, recordName: String) {
+        println("Patching tour $recordName")
+
+        print("new name (old: ${tour.name}): ")
+        val patchedName = readOrDefault() ?: tour.name
+
+        print("new start date (old: ${tour.startDate}): ")
+        val patchedStartDate = readOrDefault() ?: tour.startDate
+
+        print("new end date (old: ${tour.endDate}): ")
+        val patchedEndDate = readOrDefault() ?: tour.endDate
+
+        print("new isActive true/false (old: ${tour.isActive}): ")
+        val patchedIsActive = readOrDefault()?.toBooleanStrictOrNull() ?: tour.isActive
+
+        print("new price (old: ${tour.price}): ")
+        val patchedPrice = readOrDefault()?.toDoubleOrNull() ?: tour.price
+
+        print("new description (old: ${tour.description}): ")
+        val patchedDescription = readOrDefault() ?: tour.description
+
+        print("patch hotel? (yes to change): ")
+        val patchedHotel = if (readOrDefault() == "yes") {
+            patchHotel(tour.hotel ?: return, tour.name)
+        } else {
+            tour.hotel
+        }
+
+        saveRecord(Tour(patchedName, patchedStartDate, patchedEndDate, patchedIsActive, patchedPrice, patchedDescription, patchedHotel))
+    }
+
     fun patchRecord(recordName: String) {
         val file = jsonFile.readText()
         val jsonArray = Json.parseToJsonElement(file).jsonArray
 
-        if(recordName in file){
-            val records = jsonArray.map {
-                Json.decodeFromJsonElement<JsonEntity>(it)
-            }
-            val record = records.find { it.name == recordName }
-            println("record found: $record")
-        }
-        else{
-            println("record not found")
+        if (recordName !in file) {
+            println("Record not found")
+            return
         }
 
-        // ... <-- here i stopped i have to make this part what patches record
+        val matchingElement = jsonArray
+            .filterIsInstance<JsonObject>()
+            .find { it["name"]?.toString()?.trim('"') == recordName }
+            ?: return println("Record not found")
+
+        // Detect type by checking which fields are present
+        val record: JsonEntity = when {
+            matchingElement.containsKey("startDate") ->
+                Json.decodeFromJsonElement<Tour>(matchingElement)
+            matchingElement.containsKey("location") ->
+                Json.decodeFromJsonElement<Hotel>(matchingElement)
+            else -> return println("Unsupported record type")
+        }
+
+        when (record) {
+            is Hotel -> patchHotel(record, recordName)
+            is Tour  -> patchTour(record, recordName)
+        }
     }
 
 }
-// iron-quake
+

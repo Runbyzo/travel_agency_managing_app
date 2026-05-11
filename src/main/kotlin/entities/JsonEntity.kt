@@ -1,5 +1,8 @@
 package ex.entities
 
-interface JsonEntity {
+import kotlinx.serialization.Serializable
+
+@Serializable
+sealed interface JsonEntity {
     val name: String
 }

@@ -138,6 +138,51 @@ class FileManager {
         return hotels.find { it.name == hotelName}
     }
 
+    fun find(recordName: String): List<JsonEntity> {
+        val dataFile = Json.parseToJsonElement(jsonFile.readText()).jsonArray
+
+        fun levenshtein(a: String, b: String): Int {
+            val dp = Array(a.length + 1) { IntArray(b.length + 1) }
+            for (i in 0..a.length) dp[i][0] = i
+            for (j in 0..b.length) dp[0][j] = j
+            for (i in 1..a.length) {
+                for (j in 1..b.length) {
+                    dp[i][j] = if (a[i-1] == b[j-1]) dp[i-1][j-1]
+                    else 1 + minOf(dp[i-1][j], dp[i][j-1], dp[i-1][j-1])
+                }
+            }
+            return dp[a.length][b.length]
+        }
+
+        val records = dataFile
+            .filterIsInstance<JsonObject>()
+            .mapNotNull { element ->
+                when {
+                    element.containsKey("startDate") ->
+                        Json.decodeFromJsonElement<Tour>(element)
+                    element.containsKey("location") ->
+                        Json.decodeFromJsonElement<Hotel>(element)
+                    else -> null
+                }
+            }
+
+        if (records.isEmpty()) {
+            println("No records found")
+            return emptyList()
+        }
+
+        val results = records
+            .sortedBy { levenshtein(it.name.lowercase(), recordName.lowercase()) }
+            .take(5)
+
+        println("Top ${results.size} most similar records to '$recordName':")
+        results.forEachIndexed { i, record ->
+            println("  ${i + 1}. ${record.name} (${if (record is Hotel) "Hotel" else "Tour"})")
+        }
+
+        return results
+    }
+
     private fun saveRecord(record: JsonEntity) {
         val json = Json { prettyPrint = true }
 
@@ -176,7 +221,7 @@ class FileManager {
         print("new description (old: ${hotel.description}): ")
         val patchedDescription = readOrDefault() ?: hotel.description
 
-        print("new meal plan, comma-separated (',')(old: ${hotel.mealPlan}): ")
+        print("new meal plan, comma-separated (','), (RoomOnly, AllInclusive, BedBreakfast, HalfBoard, FullBoard), (old: ${hotel.mealPlan}): ")
         val patchedMealPlan = readOrDefault()?.split(',')?.let { convertToEnums(it) } ?: hotel.mealPlan
 
         print("new stars (old: ${hotel.stars}): ")
@@ -248,6 +293,26 @@ class FileManager {
             is Hotel -> patchHotel(record, recordName)
             is Tour  -> patchTour(record, recordName)
         }
+    }
+
+    fun deleteRecord(recordName: String) {
+        val file = jsonFile.readText()
+        val json = Json { prettyPrint = true }
+        val jsonArray = Json.parseToJsonElement(file).jsonArray
+
+        if (recordName !in file) {
+            println("Record not found")
+            return
+        }
+
+        val filtered = JsonArray(
+            jsonArray.filter { element ->
+                (element as? JsonObject)?.get("name")?.toString()?.trim('"') != recordName
+            }
+        )
+
+        jsonFile.writeText(json.encodeToString(filtered))
+        println("\nRecord '$recordName' was deleted from: ${jsonFile.path}")
     }
 
 }

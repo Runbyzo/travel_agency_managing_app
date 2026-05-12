@@ -85,8 +85,8 @@ fun sideMenu(name: String){
             3. Add tour record.
             4. Add hotel record.
             5. Patch record.
-            6. Удаление записи.
-            7. Поиск записей (минимум по одному текстовому полю).
+            6. Delete record. (you won't be able to patch it) <3.
+            7. record search.
             8. Сортировка записей (минимум по одному числовому или текстовому полю).
             9. Вычисление агрегированного показателя (среднее, сумма, минимум, максимум).
             10. Выход
@@ -176,7 +176,7 @@ fun sideMenu(name: String){
                 print("description: ")
                 val hotelDescription = readlnOrNull()?.trim() ?: "there is nothing"
 
-                print("Meal types (write them by using ','): ")
+                print("Meal types (write them by using ','), (RoomOnly, AllInclusive, BedBreakfast, HalfBoard, FullBoard): ")
                 val mealTypes = readlnOrNull()?.split(',')
                 val mealPlan  = convertToEnums(mealTypes)
 
@@ -200,8 +200,16 @@ fun sideMenu(name: String){
                 val recordName = readlnOrNull()?.trim() ?: "unnamed record"
                 fileManager.patchRecord(recordName)
             }
-            6 -> println("...")
-            7 -> println("...")
+            6 -> {
+                println("record name: ")
+                val recordName = readlnOrNull()?.trim() ?: "unnamed record"
+                print(fileManager.deleteRecord(recordName))
+            }
+            7 -> {
+                println("record name: ")
+                val recordName = readlnOrNull()?.trim() ?: "unnamed record"
+                println(fileManager.find(recordName))
+            }
             8 -> println("...")
             10 -> break
             else -> println("wrong input: $input wasn't identified")

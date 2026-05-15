@@ -4,7 +4,6 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
 @Serializable
-@SerialName("Hotel")
 data class Hotel(
     override val name: String,
     val location: String,

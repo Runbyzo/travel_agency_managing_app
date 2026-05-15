@@ -36,7 +36,7 @@ fun main() {
             1 -> {
                 print("Name of new file (default 'noname file') -> ")
                 val name = readlnOrNull() ?: "noname file"
-                File("${"$path/$name"}.json").writeText("{}")
+                File("${"$path/$name"}.json").writeText("[]")
                 println("File $name was created")
             }
             2 -> {
@@ -80,15 +80,15 @@ fun sideMenu(name: String){
         println("""
             
            Available JSON-operations: 
-            1. Show all records.
-            2. Add dynamic record. (you won't be able to patch it)
-            3. Add tour record.
-            4. Add hotel record.
-            5. Patch record.
-            6. Delete record. (you won't be able to patch it) <3.
-            7. record search.
-            8. Сортировка записей (минимум по одному числовому или текстовому полю).
-            9. Вычисление агрегированного показателя (среднее, сумма, минимум, максимум).
+            1. Show all records
+            2. Add dynamic record (you won't be able to patch it)
+            3. Add tour record
+            4. Add hotel record
+            5. Patch record
+            6. Delete record (you won't be able to patch it) <3
+            7. Search record
+            8. Sort records
+            9. statistics of file
             10. Выход
              
         """.trimIndent())
@@ -131,14 +131,13 @@ fun sideMenu(name: String){
             3 -> {
                 // Add tour record
 
-                // ask about tour params
                 print("Name of record: ")
                 val recordName = readlnOrNull()?.trim() ?: "unnamed record"
 
                 print("how many days will get this tour: ")
                 val endDate: Long = readlnOrNull()?.toLong() ?: 7
 
-                print("Is tour active: ")
+                print("Is tour active (true/false): ")
                 val isActive = readlnOrNull()?.toBoolean() ?: false
 
                 print("Price: ")
@@ -147,14 +146,8 @@ fun sideMenu(name: String){
                 print("Description: ")
                 val description = readlnOrNull()?.trim() ?: "there is nothing"
 
-                // ask about hotel
-                print("file name where hotels are stored: ")
-                val hotelJson = readlnOrNull()?.trim() ?: "hotels"
-
                 print("hotel name: ")
                 val hotelName = readlnOrNull()?.trim() ?: "unnamed hotel"
-
-                val hotel = fileManager.findHotel( hotelName)
 
                 fileManager.buildAndSaveTRecord(
                     recordName = recordName,
@@ -162,8 +155,8 @@ fun sideMenu(name: String){
                     endDate = LocalDateTime.now().plusDays(endDate).toString(),
                     price = price,
                     description = description,
-                    isActive = true,
-                    hotel = hotel)
+                    isActive = isActive,
+                    hotelName = hotelName)
             }
             4 -> {
                 // ask about hotel params
@@ -210,7 +203,14 @@ fun sideMenu(name: String){
                 val recordName = readlnOrNull()?.trim() ?: "unnamed record"
                 println(fileManager.find(recordName))
             }
-            8 -> println("...")
+            8 -> {
+                println("sort by field: ")
+                val recordName = readlnOrNull()?.trim() ?: "unnamed record"
+                fileManager.sortFile(recordName)
+            }
+            9 -> {
+                fileManager.getStats()
+            }
             10 -> break
             else -> println("wrong input: $input wasn't identified")
         }

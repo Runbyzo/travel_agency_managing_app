@@ -13,6 +13,7 @@ import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.jsonArray
 import java.io.File
+import java.lang.Double.sum
 
 class FileManager {
     val path = "/Users/runbyzo/Documents/programs/Kotlin/travel_agency/src/resources"
@@ -43,9 +44,9 @@ class FileManager {
         isActive: Boolean,
         price: Double,
         description: String,
-        hotel: Hotel?
+        hotelName: String
     ): Tour {
-        val record = Tour(recordName, startDate, endDate, isActive, price, description, hotel)
+        val record = Tour(recordName, startDate, endDate, isActive, price, description, hotelName)
         saveTRecord(record)
         return record
     }
@@ -119,24 +120,24 @@ class FileManager {
         println("\nRecord was saved in: ${jsonFile.path}")
     }
 
-    fun findHotel(hotelName: String): Hotel? {
-        val hotelsJson = File("$path/hotels.json").readText()
-        val jsonArray = Json.parseToJsonElement(hotelsJson).jsonArray
-        val result: Hotel?
-
-        if(hotelName in hotelsJson){
-            println("start searching for hotel $hotelName")
-        } else {
-            println("hotel does not exist")
-            return null
-        }
-
-        val hotels = jsonArray.map {
-            Json.decodeFromJsonElement<Hotel>(it)
-        }
-
-        return hotels.find { it.name == hotelName}
-    }
+//    fun findHotel(hotelName: String): Hotel? {
+//        val hotelsJson = File("$path/hotels.json").readText()
+//        val jsonArray = Json.parseToJsonElement(hotelsJson).jsonArray
+//        val result: Hotel?
+//
+//        if(hotelName in hotelsJson){
+//            println("start searching for hotel $hotelName")
+//        } else {
+//            println("hotel does not exist")
+//            return null
+//        }
+//
+//        val hotels = jsonArray.map {
+//            Json.decodeFromJsonElement<Hotel>(it)
+//        }
+//
+//        return hotels.find { it.name == hotelName}
+//    }
 
     fun find(recordName: String): List<JsonEntity> {
         val dataFile = Json.parseToJsonElement(jsonFile.readText()).jsonArray
@@ -256,12 +257,8 @@ class FileManager {
         print("new description (old: ${tour.description}): ")
         val patchedDescription = readOrDefault() ?: tour.description
 
-        print("patch hotel? (yes to change): ")
-        val patchedHotel = if (readOrDefault() == "yes") {
-            patchHotel(tour.hotel ?: return, tour.name)
-        } else {
-            tour.hotel
-        }
+        print("patch hotel name? (yes to change): ")
+        val patchedHotel = readOrDefault() ?: tour.hotelName
 
         saveRecord(Tour(patchedName, patchedStartDate, patchedEndDate, patchedIsActive, patchedPrice, patchedDescription, patchedHotel))
     }
@@ -315,5 +312,87 @@ class FileManager {
         println("\nRecord '$recordName' was deleted from: ${jsonFile.path}")
     }
 
+    fun sortFile(field: String) {
+        val json = Json { prettyPrint = true }
+        val jsonArray = Json.parseToJsonElement(jsonFile.readText()).jsonArray
+
+        val sorted = when (field) {
+            "name",
+            "location",
+            "description",
+            "startDate",
+            "endDate",
+            "hotelName" -> jsonArray.sortedBy { element ->
+                (element as? JsonObject)?.get(field)?.toString()?.trim('"')
+            }
+            "stars" -> jsonArray.sortedBy { element ->
+                (element as? JsonObject)?.get(field)?.toString()?.toIntOrNull()
+            }
+            "price" -> jsonArray.sortedBy { element ->
+                (element as? JsonObject)?.get(field)?.toString()?.toDoubleOrNull()
+            }
+            else -> return println("$field is unsupported field")
+        }
+
+        jsonFile.writeText(json.encodeToString(JsonArray(sorted)))
+        println("\nFile sorted by '$field' and saved")
+    }
+
+    fun getStats() {
+        val jsonArray = Json.parseToJsonElement(jsonFile.readText()).jsonArray
+        val fileText = jsonFile.readText()
+
+        println("Current stats " +
+                "\n-----------------------" +
+                "\nname: ${jsonFile.name}" +
+                "\nnumber of elements: ${jsonArray.size}")
+
+        when {
+            "location" in fileText -> {
+                println("element type: Hotel" +
+                        "\nWorst hotel: ${findMin("stars")?.get("name")?.toString()}" +
+                        "\nBest hotel: ${findMax("stars")?.get("name")?.toString()}")
+            }
+            "startDate" in fileText -> {
+                println("element type: Tour" +
+                        "\nCheapest tour: ${findMin("price")?.get("name")?.toString()}" +
+                        "\nMost expensive: ${findMax("price")?.get("name")?.toString()}")
+            }
+            else -> println("unknown element type")
+        }
+    }
+
+
+    fun findMin(field: String): JsonObject? {
+        val jsonArray = Json.parseToJsonElement(jsonFile.readText()).jsonArray
+
+        val result = when (field) {
+            "stars" -> jsonArray.minByOrNull { element ->
+                (element as? JsonObject)?.get(field)?.toString()?.toIntOrNull() ?: 0
+            }
+            "price" -> jsonArray.minByOrNull { element ->
+                (element as? JsonObject)?.get(field)?.toString()?.toDoubleOrNull() ?: 0.0
+            }
+            else -> return println("$field is unsupported field").let { null }
+        }
+
+        return result as? JsonObject
+    }
+
+    fun findMax(field: String): JsonObject? {
+        val jsonArray = Json.parseToJsonElement(jsonFile.readText()).jsonArray
+
+        val result = when (field) {
+            "stars" -> jsonArray.maxByOrNull { element ->
+                (element as? JsonObject)?.get(field)?.toString()?.toIntOrNull() ?: 0
+            }
+            "price" -> jsonArray.maxByOrNull { element ->
+                (element as? JsonObject)?.get(field)?.toString()?.toDoubleOrNull() ?: 0.0
+            }
+            else -> return println("$field is unsupported field").let { null }
+        }
+
+        return result as? JsonObject
+    }
 }
 

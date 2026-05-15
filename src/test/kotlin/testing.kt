@@ -14,6 +14,6 @@ fun sum(): Int {
     return result
 }
 
+
 fun main(){
-    sum()
 }

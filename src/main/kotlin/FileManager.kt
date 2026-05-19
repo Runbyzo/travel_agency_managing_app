@@ -23,10 +23,21 @@ class FileManager {
         this.jsonFile = File("$path/$name.json")
     }
 
+    private fun readJsonArray(): JsonArray {
+        if (!jsonFile.exists() || jsonFile.readText().isBlank()) return JsonArray(emptyList())
+        return runCatching {
+            Json.parseToJsonElement(jsonFile.readText()).jsonArray
+        }.getOrElse { e ->
+            println("Failed to parse JSON: ${e.message}")
+            JsonArray(emptyList())
+        }
+    }
+
     // method what reads file
     fun loadFromFile(): String {
-        val jsonString = jsonFile.readText()
-        return jsonString
+        if (!jsonFile.exists()) return "[]".also { println("File not found: ${jsonFile.path}") }
+        return runCatching { jsonFile.readText() }
+            .getOrElse { e -> "[]".also { println("Failed to read file: ${e.message}") } }
     }
 
     fun buildAndSaveDRecord(recordName: String,
@@ -120,27 +131,11 @@ class FileManager {
         println("\nRecord was saved in: ${jsonFile.path}")
     }
 
-//    fun findHotel(hotelName: String): Hotel? {
-//        val hotelsJson = File("$path/hotels.json").readText()
-//        val jsonArray = Json.parseToJsonElement(hotelsJson).jsonArray
-//        val result: Hotel?
-//
-//        if(hotelName in hotelsJson){
-//            println("start searching for hotel $hotelName")
-//        } else {
-//            println("hotel does not exist")
-//            return null
-//        }
-//
-//        val hotels = jsonArray.map {
-//            Json.decodeFromJsonElement<Hotel>(it)
-//        }
-//
-//        return hotels.find { it.name == hotelName}
-//    }
-
     fun find(recordName: String): List<JsonEntity> {
-        val dataFile = Json.parseToJsonElement(jsonFile.readText()).jsonArray
+        val dataFile = runCatching { readJsonArray() }.getOrElse {
+            println("Could not read file")
+            return emptyList()
+        }
 
         fun levenshtein(a: String, b: String): Int {
             val dp = Array(a.length + 1) { IntArray(b.length + 1) }
@@ -158,13 +153,13 @@ class FileManager {
         val records = dataFile
             .filterIsInstance<JsonObject>()
             .mapNotNull { element ->
-                when {
-                    element.containsKey("startDate") ->
-                        Json.decodeFromJsonElement<Tour>(element)
-                    element.containsKey("location") ->
-                        Json.decodeFromJsonElement<Hotel>(element)
-                    else -> null
-                }
+                runCatching {
+                    when {
+                        element.containsKey("startDate") -> Json.decodeFromJsonElement<Tour>(element)
+                        element.containsKey("location")  -> Json.decodeFromJsonElement<Hotel>(element)
+                        else -> null.also { println("Skipping unknown element: $element") }
+                    }
+                }.getOrElse { e -> null.also { println("Failed to decode element: ${e.message}") } }
             }
 
         if (records.isEmpty()) {
@@ -180,18 +175,12 @@ class FileManager {
         results.forEachIndexed { i, record ->
             println("  ${i + 1}. ${record.name} (${if (record is Hotel) "Hotel" else "Tour"})")
         }
-
         return results
     }
 
     private fun saveRecord(record: JsonEntity) {
         val json = Json { prettyPrint = true }
-
-        val existingArray: JsonArray = if (jsonFile.exists() && jsonFile.readText().isNotBlank()) {
-            json.parseToJsonElement(jsonFile.readText()).jsonArray
-        } else {
-            JsonArray(emptyList())
-        }
+        val existingArray = readJsonArray()
 
         val filtered = existingArray.filter { element ->
             (element as? JsonObject)?.get("name")?.toString()?.trim('"') != record.name
@@ -203,8 +192,10 @@ class FileManager {
             else     -> return println("Unsupported record type")
         }
 
-        jsonFile.writeText(json.encodeToString(JsonArray(filtered + newElement)))
-        println("\nRecord was saved in: ${jsonFile.path}")
+        runCatching {
+            jsonFile.writeText(json.encodeToString(JsonArray(filtered + newElement)))
+            println("\nRecord was saved in: ${jsonFile.path}")
+        }.onFailure { e -> println("Failed to save record: ${e.message}") }
     }
 
 
@@ -264,27 +255,27 @@ class FileManager {
     }
 
     fun patchRecord(recordName: String) {
-        val file = jsonFile.readText()
-        val jsonArray = Json.parseToJsonElement(file).jsonArray
-
-        if (recordName !in file) {
-            println("Record not found")
-            return
+        val file = runCatching { jsonFile.readText() }.getOrElse {
+            println("Could not read file"); return
         }
+        val jsonArray = runCatching { Json.parseToJsonElement(file).jsonArray }.getOrElse {
+            println("Invalid JSON in file"); return
+        }
+
+        if (recordName !in file) { println("Record not found"); return }
 
         val matchingElement = jsonArray
             .filterIsInstance<JsonObject>()
             .find { it["name"]?.toString()?.trim('"') == recordName }
             ?: return println("Record not found")
 
-        // Detect type by checking which fields are present
-        val record: JsonEntity = when {
-            matchingElement.containsKey("startDate") ->
-                Json.decodeFromJsonElement<Tour>(matchingElement)
-            matchingElement.containsKey("location") ->
-                Json.decodeFromJsonElement<Hotel>(matchingElement)
-            else -> return println("Unsupported record type")
-        }
+        val record: JsonEntity = runCatching {
+            when {
+                matchingElement.containsKey("startDate") -> Json.decodeFromJsonElement<Tour>(matchingElement)
+                matchingElement.containsKey("location")  -> Json.decodeFromJsonElement<Hotel>(matchingElement)
+                else -> return println("Unsupported record type")
+            }
+        }.getOrElse { e -> return println("Failed to decode record: ${e.message}") }
 
         when (record) {
             is Hotel -> patchHotel(record, recordName)
@@ -293,11 +284,10 @@ class FileManager {
     }
 
     fun deleteRecord(recordName: String) {
-        val file = jsonFile.readText()
         val json = Json { prettyPrint = true }
-        val jsonArray = Json.parseToJsonElement(file).jsonArray
+        val jsonArray = readJsonArray()
 
-        if (recordName !in file) {
+        if (recordName !in jsonFile.readText()) {
             println("Record not found")
             return
         }
@@ -308,34 +298,30 @@ class FileManager {
             }
         )
 
-        jsonFile.writeText(json.encodeToString(filtered))
-        println("\nRecord '$recordName' was deleted from: ${jsonFile.path}")
+        runCatching {
+            jsonFile.writeText(json.encodeToString(filtered))
+            println("\nRecord '$recordName' was deleted from: ${jsonFile.path}")
+        }.onFailure { e -> println("Failed to delete record: ${e.message}") }
     }
 
     fun sortFile(field: String) {
         val json = Json { prettyPrint = true }
-        val jsonArray = Json.parseToJsonElement(jsonFile.readText()).jsonArray
+        val jsonArray = readJsonArray()
 
         val sorted = when (field) {
-            "name",
-            "location",
-            "description",
-            "startDate",
-            "endDate",
-            "hotelName" -> jsonArray.sortedBy { element ->
-                (element as? JsonObject)?.get(field)?.toString()?.trim('"')
-            }
-            "stars" -> jsonArray.sortedBy { element ->
-                (element as? JsonObject)?.get(field)?.toString()?.toIntOrNull()
-            }
-            "price" -> jsonArray.sortedBy { element ->
-                (element as? JsonObject)?.get(field)?.toString()?.toDoubleOrNull()
-            }
+            "name", "location", "description", "startDate", "endDate", "hotelName" ->
+                jsonArray.sortedBy { (it as? JsonObject)?.get(field)?.toString()?.trim('"') }
+            "stars" ->
+                jsonArray.sortedBy { (it as? JsonObject)?.get(field)?.toString()?.toIntOrNull() }
+            "price" ->
+                jsonArray.sortedBy { (it as? JsonObject)?.get(field)?.toString()?.toDoubleOrNull() }
             else -> return println("$field is unsupported field")
         }
 
-        jsonFile.writeText(json.encodeToString(JsonArray(sorted)))
-        println("\nFile sorted by '$field' and saved")
+        runCatching {
+            jsonFile.writeText(json.encodeToString(JsonArray(sorted)))
+            println("\nFile sorted by '$field' and saved")
+        }.onFailure { e -> println("Failed to sort file: ${e.message}") }
     }
 
     fun getStats() {

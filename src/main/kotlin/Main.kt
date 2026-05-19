@@ -32,7 +32,7 @@ fun main() {
         """.trimIndent())
 
         print("-> ")
-        when (val input = readlnOrNull()?.toInt()) {
+        when (val input = readlnOrNull()?.trim()?.toIntOrNull()) {
             1 -> {
                 print("Name of new file (default 'noname file') -> ")
                 val name = readlnOrNull() ?: "noname file"
@@ -94,7 +94,7 @@ fun sideMenu(name: String){
         """.trimIndent())
 
         print("-> ")
-        when (val input = readlnOrNull()?.toInt()) {
+        when (val input = readlnOrNull()?.trim()?.toIntOrNull()) {
             1 -> println(fileManager.loadFromFile()) // Show all records
             2 -> {
                 // Add dynamic record
@@ -135,13 +135,13 @@ fun sideMenu(name: String){
                 val recordName = readlnOrNull()?.trim() ?: "unnamed record"
 
                 print("how many days will get this tour: ")
-                val endDate: Long = readlnOrNull()?.toLong() ?: 7
+                val endDate: Long = readlnOrNull()?.toLongOrNull() ?: 7
 
                 print("Is tour active (true/false): ")
                 val isActive = readlnOrNull()?.toBoolean() ?: false
 
                 print("Price: ")
-                val price = readlnOrNull()?.toDouble() ?: 0.0
+                val price = readlnOrNull()?.toDoubleOrNull() ?: 0.0
 
                 print("Description: ")
                 val description = readlnOrNull()?.trim() ?: "there is nothing"
@@ -174,7 +174,7 @@ fun sideMenu(name: String){
                 val mealPlan  = convertToEnums(mealTypes)
 
                 print("how many stars: ")
-                val stars = readlnOrNull()?.toInt() ?: 0
+                val stars = readlnOrNull()?.toIntOrNull() ?: 0
 
                 print("is hotel available (true/false): ")
                 val isHotelAvailable = readlnOrNull()?.toBoolean() ?: false
@@ -219,11 +219,12 @@ fun sideMenu(name: String){
 
 // this method converts list of strings to list of enums
 fun convertToEnums(inputs: List<String>?): MutableList<Meal?> {
+    if (inputs == null) return mutableListOf()
     val result = mutableListOf<Meal?>()
-    for (i in inputs!!) {
-        for (j in Meal.entries) {
-            if (i == j.toString()) result.add(j)
-        }
+    for (i in inputs) {
+        val match = Meal.entries.find { it.toString() == i.trim() }
+        if (match == null) println("Unknown meal type: '$i', skipping")
+        else result.add(match)
     }
     return result
 }
